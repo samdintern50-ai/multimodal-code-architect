@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal Code Architect</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 5px; }
+        p { text-align: center; color: #666; margin-top: 0; }
+        .btn-group { display: flex; justify-content: center; gap: 12px; margin: 25px 0; flex-wrap: wrap; }
+        button { background-color: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        button:hover { background-color: #2980b9; }
+        button.patch-btn { background-color: #2ecc71; }
+        button.patch-btn:hover { background-color: #27ae60; }
+        button.graph-btn { background-color: #9b59b6; }
+        button.graph-btn:hover { background-color: #8e44ad; }
+        button.pdf-btn { background-color: #e67e22; }
+        button.pdf-btn:hover { background-color: #d35400; }
+        .results { margin-top: 20px; padding: 15px; background: #eef2f5; border-radius: 5px; white-space: pre-wrap; font-family: monospace; font-size: 13px; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; }
+        #network-container { width: 100%; height: 400px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 6px; margin-top: 20px; display: none; }
+        .diff-container { display: none; margin-top: 20px; gap: 15px; }
+        .diff-box { flex: 1; background: #282c34; border-radius: 6px; padding: 15px; color: #abb2bf; font-family: 'Courier New', Courier, monospace; overflow-x: auto; }
+        .diff-box h3 { margin-top: 0; border-bottom: 1px solid #4b5263; padding-bottom: 8px; font-size: 15px; }
+        .diff-box.original h3 { color: #e06c75; }
+        .diff-box.patched h3 { color: #98c379; }
+        pre { margin: 0; white-space: pre-wrap; word-break: break-all; font-size: 13px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛡️ Multimodal Code Architect</h1>
+    <p>Automated CPG Static Analysis, Visualizer & Remediation Engine</p>
+
+    <div class="btn-group">
+        <button onclick="runScan()">🔍 Run Scan</button>
+        <button class="graph-btn" onclick="loadGraph()">🌐 Visualize CPG Graph</button>
+        <button class="patch-btn" onclick="applyPatch()">🩹 Apply Security Patch</button>
+        <button class="pdf-btn" onclick="downloadPDF()">📄 Download PDF Report</button>
+    </div>
+
+    <div id="network-container"></div>
+
+    <div class="diff-container" id="diffContainer">
+        <div class="diff-box original">
+            <h3>❌ Original Code (Vulnerable)</h3>
+            <pre id="originalCode">// Original code will appear here...</pre>
+        </div>
+        <div class="diff-box patched">
+            <h3>✅ Patched Code (Remediated)</h3>
+            <pre id="patchedCode">// Patched code will appear here...</pre>
+        </div>
+    </div>
+
+    <div class="results" id="output">Click a button above to run analysis, render CPG graph, apply patches, or download PDF audit reports...</div>
+</div>
+
+<script>
+    const API_BASE = "http://127.0.0.1:8001";
+
+    async function runScan() {
+        document.getElementById('output').innerText = "Scanning repository using CPG and Taint Tracer...";
+        try {
+            const res = await fetch(`${API_BASE}/scan`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo_path: "test_repo" })
+            });
+            const data = await res.json();
+            document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+        } catch (err) {
+            document.getElementById('output').innerText = "Error: " + err;
+        }
+    }
+
+    async function loadGraph() {
+        document.getElementById('output').innerText = "Loading Code Property Graph visualization...";
+        const container = document.getElementById('network-container');
+        container.style.display = "block";
+
+        try {
+            const res = await fetch(`${API_BASE}/graph`);
+            const graphData = await res.json();
+
+            const data = {
+                nodes: new vis.DataSet(graphData.nodes.map(n => ({ id: n.id, label: n.label, color: { background: n.color, border: '#2c3e50' }, font: { color: '#fff' }, shape: 'box' }))),
+                edges: new vis.DataSet(graphData.edges.map(e => ({ from: e.from, to: e.to, label: e.label, arrows: 'to', color: { color: '#bdc3c7' } })))
+            };
+
+            const options = {
+                nodes: { borderWidth: 2, shadow: true },
+                edges: { smooth: true, font: { align: 'middle' } },
+                physics: { stabilization: true }
+            };
+
+            new vis.Network(container, data, options);
+            document.getElementById('output').innerText = `Visual CPG Loaded Successfully!\nNodes: ${graphData.nodes.length} | Edges: ${graphData.edges.length}\nRed nodes indicate vulnerable taint paths!`;
+        } catch (err) {
+            document.getElementById('output').innerText = "Error loading graph: " + err;
+        }
+    }
+
+    async function applyPatch() {
+        document.getElementById('output').innerText = "Generating and applying security patches...";
+        try {
+            const res = await fetch(`${API_BASE}/apply-patch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_file: "test_repo/db.py" })
+            });
+            const data = await res.json();
+            
+            document.getElementById('output').innerText = JSON.stringify({
+                status: data.status,
+                message: data.message,
+                backup_file: data.backup_file
+            }, null, 2);
+
+            if (data.original_code && data.patched_code) {
+                document.getElementById('diffContainer').style.display = "flex";
+                document.getElementById('originalCode').innerText = data.original_code;
+                document.getElementById('patchedCode').innerText = data.patched_code;
+            }
+
+            loadGraph();
+        } catch (err) {
+            document.getElementById('output').innerText = "Error: " + err;
+        }
+    }
+
+    function downloadPDF() {
+        window.open(`${API_BASE}/download-report`, '_blank');
+    }
+</script>
+
+</body>
+</html>
